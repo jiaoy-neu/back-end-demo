@@ -57,15 +57,15 @@ jobs:
           ## 🔧 使用说明
           运行应用:
           ```bash
-          java -jar app-${{ github.event.inputs.version }}.jar
+          需要将WAR放到Tomcat中运行
           ```
           
           ## 📊 构建信息
-          - 构建时间: ${{ github.event.head_commit.timestamp }}
+          - 构建时间: $(date)
           - 提交: ${{ github.sha }}
           - 构建号: ${{ github.run_number }}
         draft: ${{ github.event.inputs.release_type == 'draft' }}
         prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
         files: |
-          app-${{ github.event.inputs.version }}.jar
+          app-${{ github.event.inputs.version }}.war
         token: ${{ secrets.GITHUB_TOKEN }}
