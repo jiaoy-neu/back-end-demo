@@ -34,7 +34,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '21'
-#        distribution: 'temurin'  # 这是java8必需的参数
+        distribution: 'oracle'  # 这是必需的参数
         
     - name: 创建 Git 标签
       run: |
