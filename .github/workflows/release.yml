@@ -1,0 +1,71 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号 (例如: 1.0.0)'
+        required: true
+      release_type:
+        description: '发布类型'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - prerelease
+          - draft
+      changelog:
+        description: '发布说明'
+        required: false
+        default: ''
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+#        distribution: 'temurin'  # 这是java8必需的参数
+        
+    - name: 创建 Git 标签
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+        git tag -a v${{ github.event.inputs.version }} -m "Release v${{ github.event.inputs.version }}"
+        git push origin v${{ github.event.inputs.version }}
+    - name: 构建 WAR
+      run: |
+        mvn clean install -Dmaven.test.skip=true
+        cp target/*.war app-${{ github.event.inputs.version }}.war
+    - name: 创建 Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: Release v${{ github.event.inputs.version }}
+        body: |
+          ${{ github.event.inputs.changelog }}
+          
+          ## 🔧 使用说明
+          运行应用:
+          ```bash
+          java -jar app-${{ github.event.inputs.version }}.jar
+          ```
+          
+          ## 📊 构建信息
+          - 构建时间: ${{ github.event.head_commit.timestamp }}
+          - 提交: ${{ github.sha }}
+          - 构建号: ${{ github.run_number }}
+        draft: ${{ github.event.inputs.release_type == 'draft' }}
+        prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
+        files: |
+          app-${{ github.event.inputs.version }}.jar
+        token: ${{ secrets.GITHUB_TOKEN }}
