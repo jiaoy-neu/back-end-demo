@@ -21,15 +21,63 @@ on:
         default: ''
 
 jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: frontend-${{ github.run_id }}-${{ github.run_attempt }}
+    
+    steps:
+    - name: 检出前端代码
+      uses: actions/checkout@v4
+      with:
+        repository: jiaoy-neu/front-end-demo
+        ref: master  # 根据你的分支修改
+        path: frontend
+    
+    - name: 设置 Node.js 16.13.2
+      uses: actions/setup-node@v4
+      with:
+        node-version: '16.13.2'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: 安装依赖
+      working-directory: ./frontend
+      run: npm install
+    
+    - name: 构建前端
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: 上传前端构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: frontend/dist/
+        retention-days: 1
+        
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     
     steps:
-    - name: 检出代码
+    - name: 检出后端代码
       uses: actions/checkout@v4
 
+    - name: 下载前端构建产物
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-${{ github.run_id }}-${{ github.run_attempt }}
+        path: frontend-dist
+
+    - name: 复制前端文件到后端目录
+      run: |
+        mkdir -p back/src/main/webapp/public
+        cp -rf frontend-dist/* back/src/main/webapp/public/
+        echo "前端文件已复制到后端目录:"
+        ls -la back/src/main/webapp/public/
+        
     - name: 设置 Java
       uses: actions/setup-java@v4
       with:
