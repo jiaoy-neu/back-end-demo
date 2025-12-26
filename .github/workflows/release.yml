@@ -188,7 +188,7 @@ jobs:
           ```
           
           ## 📊 构建信息
-          - 构建时间: ${{ steps.timestamp.outputs.build_time }}
+          - 构建时间: UTC ${{ steps.timestamp.outputs.build_time }}
           - 前端: Vue.js (Node.js 16.13.2)
           - 后端: Java 21 (Temurin)
           - 提交: ${{ github.sha }}
