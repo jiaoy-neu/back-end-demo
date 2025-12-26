@@ -135,7 +135,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '21'
-        distribution: 'temurin'  # 建议使用temurin（开源免费）
+        distribution: 'oracle'  # 建议使用temurin（开源免费）
     
     - name: 生成构建时间
       id: timestamp
