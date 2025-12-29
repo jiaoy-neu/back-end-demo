@@ -29,7 +29,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: jiaoy-neu/front-end-demo
-        ref: master  # 明确指定分支
+        ref: master
         path: frontend
     
     - name: 设置 Node.js
@@ -46,7 +46,7 @@ jobs:
         npm run build
     
     - name: 上传前端构建产物
-      uses: actions/download-artifact@v4
+      uses: actions/upload-artifact@v4  # 修复：这里应该是 upload，不是 download
       with:
         name: frontend-dist
         path: frontend/dist/
