@@ -144,7 +144,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '21'
-        distribution: 'oracle'
+        distribution: 'temurin'
 
     - name: Check Java Version
       run: |
