@@ -97,12 +97,6 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'  # 启用 Maven 依赖缓存
     
-    # 然后设置 Maven 版本
-    - name: 设置 Maven
-      uses: actions/setup-maven@v3
-      with:
-        maven-version: '3.9.8'  # 指定 Maven 版本
-    
     - name: 验证工具版本
       run: |
         echo "Java 版本:"
