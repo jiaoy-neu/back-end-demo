@@ -89,18 +89,30 @@ jobs:
         fi
         echo "✅ 成功复制前端文件"
     
-    - name: 设置 Java 和 Maven
+    # 先设置 Java
+    - name: 设置 Java
       uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
-        maven-version: '3.9.8'  # 指定 Maven 3.9.6
         cache: 'maven'  # 启用 Maven 依赖缓存
     
-    - name: 验证 Maven 版本
+    # 然后设置 Maven 版本
+    - name: 设置 Maven
+      uses: actions/setup-maven@v4
+      with:
+        maven-version: '3.9.8'  # 指定 Maven 版本
+    
+    - name: 验证工具版本
       run: |
-        echo "Maven 版本信息:"
+        echo "Java 版本:"
+        java -version
+        echo ""
+        echo "Maven 版本:"
         mvn --version
+        echo ""
+        echo "Maven home:"
+        which mvn
     
     - name: 创建 Git 标签
       run: |
