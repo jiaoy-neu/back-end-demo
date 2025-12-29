@@ -19,14 +19,6 @@ on:
         description: '发布说明'
         required: false
         default: ''
-      debug:
-        description: '是否启用调试模式（显示详细信息）'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 jobs:
   build-frontend:
@@ -40,37 +32,24 @@ jobs:
         ref: master
         path: frontend
     
-    - name: 设置 Node.js 16.13.2
+    - name: 设置 Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '16.13.2'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
     
-    - name: 安装依赖
-      working-directory: ./frontend
-      run: npm ci
-    
-    - name: 构建前端
-      working-directory: ./frontend
-      run: npm run build
-      env:
-        NODE_ENV: production
-    
-    - name: 验证构建结果
+    - name: 安装依赖并构建
       working-directory: ./frontend
       run: |
-        echo "前端构建结果:"
-        ls -la dist/
-        echo "index.html存在: $(ls dist/index.html 2>/dev/null && echo '是' || echo '否')"
+        npm ci
+        npm run build
     
     - name: 上传前端构建产物
       uses: actions/upload-artifact@v4
       with:
         name: frontend-dist
         path: frontend/dist/
-        retention-days: 1
-        if-no-files-found: error
 
   release:
     runs-on: ubuntu-latest
@@ -88,73 +67,34 @@ jobs:
         name: frontend-dist
         path: frontend-dist
     
-    - name: 检查目录结构
-      if: ${{ github.event.inputs.debug == 'true' }}
-      run: |
-        echo "🔍 调试模式：当前工作目录: $(pwd)"
-        echo "🔍 调试模式：目录结构:"
-        ls -la
-        echo "🔍 调试模式：后端项目结构:"
-        find . -type d -name "src" | head -10
-        echo "🔍 调试模式：前端构建产物:"
-        ls -la frontend-dist/
-    
     - name: 复制前端文件到后端目录
       run: |
-        # 先检查后端实际的目录结构
-        echo "查找webapp目录..."
-        find . -type d -name "webapp" 2>/dev/null || echo "未找到webapp目录"
-        
-        # 尝试创建正确的目录结构
-        # 首先检查是否存在src/main/webapp
+        # 确定目标目录
         if [ -d "src/main/webapp" ]; then
-          echo "找到目录: src/main/webapp"
           TARGET_DIR="src/main/webapp/public"
         elif [ -d "back/src/main/webapp" ]; then
-          echo "找到目录: back/src/main/webapp"
           TARGET_DIR="back/src/main/webapp/public"
         else
-          echo "未找到webapp目录，尝试创建..."
-          # 尝试在src下创建
           mkdir -p src/main/webapp
           TARGET_DIR="src/main/webapp/public"
         fi
         
-        # 创建目标目录
         mkdir -p "$TARGET_DIR"
-        
-        echo "复制前端文件到: $TARGET_DIR"
         cp -rf frontend-dist/* "$TARGET_DIR/"
         
         # 验证复制结果
-        echo "复制完成，检查目标目录:"
-        ls -la "$TARGET_DIR/" || echo "目录不存在"
-        
-        if [ -f "$TARGET_DIR/index.html" ]; then
-          echo "✅ 成功复制前端文件"
-          echo "文件数量: $(find "$TARGET_DIR" -type f | wc -l)"
-        else
+        if [ ! -f "$TARGET_DIR/index.html" ]; then
           echo "❌ 错误: 未找到index.html"
-          echo "尝试列出所有可能的位置:"
-          find . -name "index.html" -type f 2>/dev/null || true
           exit 1
         fi
+        echo "✅ 成功复制前端文件"
     
-    - name: 设置 Java
+    - name: 设置 Java (Temurin)
       uses: actions/setup-java@v4
       with:
         java-version: '21'
-        distribution: 'temurin'
-
-    - name: Check Java Version
-      run: |
-        java -version
-        echo "JAVA_HOME: $JAVA_HOME"
-        
-    - name: 生成构建时间
-      id: timestamp
-      run: echo "build_time=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
-        
+        distribution: 'temurin'  # 推荐：完全免费，开源
+    
     - name: 创建 Git 标签
       run: |
         git config user.name "github-actions"
@@ -162,29 +102,13 @@ jobs:
         git tag -a v${{ github.event.inputs.version }} -m "Release v${{ github.event.inputs.version }}"
         git push origin v${{ github.event.inputs.version }}
     
-    - name: 构建 WAR
+    - name: 构建 WAR 包
       run: |
-        echo "开始构建WAR包..."
         mvn clean install -DskipTests
         
-        echo "查找WAR文件..."
-        ls -la target/*.war 2>/dev/null || echo "在target目录中查找..."
-        
-        # 复制并重命名WAR文件
-        for war in target/*.war; do
-          if [ -f "$war" ]; then
-            cp "$war" "app-${{ github.event.inputs.version }}.war"
-            echo "✅ 已复制: $war -> app-${{ github.event.inputs.version }}.war"
-            break
-          fi
-        done
-        
-        if [ ! -f "app-${{ github.event.inputs.version }}.war" ]; then
-          echo "❌ 错误: 未找到或复制WAR文件"
-          echo "尝试手动查找:"
-          find . -name "*.war" -type f
-          exit 1
-        fi
+        # 查找并重命名WAR文件
+        WAR_FILE=$(find . -name "*.war" -type f | head -1)
+        cp "$WAR_FILE" "app-${{ github.event.inputs.version }}.war"
     
     - name: 创建 Release
       uses: softprops/action-gh-release@v1
@@ -194,23 +118,11 @@ jobs:
         body: |
           ${{ github.event.inputs.changelog }}
           
-          ## 🔧 使用说明
-          运行应用:
-          ```bash
-          需要将WAR放到Tomcat中运行
-          ```
-          
-          ## 📊 构建信息
-          - 构建时间: UTC ${{ steps.timestamp.outputs.build_time }}
-          - 前端: Vue.js (Node.js 16.13.2)
-          - 后端: Java 21 (Temurin)
+          ## 构建信息
+          - 版本: ${{ github.event.inputs.version }}
+          - 类型: ${{ github.event.inputs.release_type }}
           - 提交: ${{ github.sha }}
           - 构建号: ${{ github.run_number }}
-          
-          ## 📦 文件说明
-          - `app-${{ github.event.inputs.version }}.war`: 完整应用包，包含前后端
         draft: ${{ github.event.inputs.release_type == 'draft' }}
         prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
-        files: |
-          app-${{ github.event.inputs.version }}.war
-        token: ${{ secrets.GITHUB_TOKEN }}
+        files: app-${{ github.event.inputs.version }}.war
