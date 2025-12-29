@@ -31,6 +31,8 @@ on:
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
+    env:
+      IS_DEBUG: ${{ github.event.inputs.debug }}
     
     steps:
     - name: 检出前端代码
@@ -47,14 +49,18 @@ jobs:
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
     
-    - name: 安装依赖并构建
+    - name: 安装依赖
       working-directory: ./frontend
-      run: |
-        npm ci
-        npm run build
+      run: npm ci
+    
+    - name: 构建前端
+      working-directory: ./frontend
+      run: npm run build
+      env:
+        NODE_ENV: production
     
     - name: 验证构建结果
-      if: ${{ github.event.inputs.debug == 'true' }}
+      if: env.IS_DEBUG == 'true'
       working-directory: ./frontend
       run: |
         echo "🔍 调试模式：前端构建结果:"
@@ -106,22 +112,32 @@ jobs:
         elif [ -d "back/src/main/webapp" ]; then
           TARGET_DIR="back/src/main/webapp/public"
         else
-          [ "$IS_DEBUG" = "true" ] && echo "未找到webapp目录，尝试创建..."
+          if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+            echo "🔍 调试模式：未找到webapp目录，尝试创建..."
+          fi
           mkdir -p src/main/webapp
           TARGET_DIR="src/main/webapp/public"
         fi
         
-        [ "$IS_DEBUG" = "true" ] && echo "目标目录: $TARGET_DIR"
+        if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+          echo "🔍 调试模式：目标目录: $TARGET_DIR"
+        fi
+        
         mkdir -p "$TARGET_DIR"
         cp -rf frontend-dist/* "$TARGET_DIR/"
         
         # 验证复制结果
         if [ -f "$TARGET_DIR/index.html" ]; then
           echo "✅ 成功复制前端文件"
-          [ "$IS_DEBUG" = "true" ] && echo "文件数量: $(find "$TARGET_DIR" -type f | wc -l)"
+          if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+            echo "🔍 调试模式：文件数量: $(find "$TARGET_DIR" -type f | wc -l)"
+          fi
         else
           echo "❌ 错误: 未找到index.html"
-          [ "$IS_DEBUG" = "true" ] && echo "尝试列出所有可能的位置:" && find . -name "index.html" -type f 2>/dev/null || true
+          if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+            echo "🔍 调试模式：尝试列出所有可能的位置:"
+            find . -name "index.html" -type f 2>/dev/null || true
+          fi
           exit 1
         fi
     
@@ -144,11 +160,13 @@ jobs:
     
     - name: 构建 WAR
       run: |
-        [ "$IS_DEBUG" = "true" ] && echo "🔍 调试模式：开始构建WAR包..."
+        if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+          echo "🔍 调试模式：开始构建WAR包..."
+        fi
+        
         mvn clean install -DskipTests
         
-        # 查找并重命名WAR文件
-        if [ "$IS_DEBUG" = "true" ]; then
+        if [ "${{ github.event.inputs.debug }}" == "true" ]; then
           echo "🔍 调试模式：查找WAR文件..."
           find . -name "*.war" -type f 2>/dev/null || echo "未找到WAR文件"
         fi
@@ -157,14 +175,19 @@ jobs:
         for war in target/*.war; do
           if [ -f "$war" ]; then
             cp "$war" "app-${{ github.event.inputs.version }}.war"
-            [ "$IS_DEBUG" = "true" ] && echo "✅ 已复制: $war -> app-${{ github.event.inputs.version }}.war"
+            if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+              echo "✅ 已复制: $war -> app-${{ github.event.inputs.version }}.war"
+            fi
             break
           fi
         done
         
         if [ ! -f "app-${{ github.event.inputs.version }}.war" ]; then
           echo "❌ 错误: 未找到或复制WAR文件"
-          [ "$IS_DEBUG" = "true" ] && echo "尝试手动查找:" && find . -name "*.war" -type f
+          if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+            echo "🔍 调试模式：尝试手动查找:"
+            find . -name "*.war" -type f
+          fi
           exit 1
         fi
         
