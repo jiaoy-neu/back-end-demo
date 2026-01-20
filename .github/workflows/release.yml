@@ -166,6 +166,20 @@ jobs:
           exit 1
         fi
 
+    - name: 重启 Azure App Service
+      env:
+        FTP_USER: ${{ secrets.AZURE_FTP_USERNAME }}
+        FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
+        WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+      run: |
+        echo "正在重启 App Service..."
+
+        curl -X POST -u "$FTP_USER:$FTP_PASS" \
+          "https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart" \
+          --connect-timeout 30
+
+        echo "重启命令已发送"
+        
     - name: 清理旧标签
       run: |
         git tag -l | sort -V | tail -n +11 | xargs -r git tag -d
