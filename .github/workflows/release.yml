@@ -142,21 +142,26 @@ jobs:
     - name: 安装 lftp 客户端
       run: sudo apt-get update && sudo apt-get install -y lftp
 
-    - name: 测试 FTP 连接
+    - name: 详细测试 FTP 连接
       env:
         FTP_HOST: ${{ secrets.AZURE_FTP_HOST }}
         FTP_USER: ${{ secrets.AZURE_FTP_USERNAME }}
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
       run: |
-        echo "测试连接..."
-        lftp -e "
+        echo "FTP_HOST: $FTP_HOST"
+        echo "FTP_USER: $FTP_USER"
+        
+        lftp -v -e "
+          debug 3;
           set ftp:ssl-allow true;
           set ftp:ssl-protect-data true;
+          set ftp:ssl-force false;
           set ssl:verify-certificate no;
-          set net:timeout 30;
+          set net:timeout 60;
+          set net:max-retries 3;
           ls;
           bye;
-        " -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
+        " -u "$FTP_USER","$FTP_PASS" "$FTP_HOST" 2>&1
     
     - name: 清理旧标签
       run: |
