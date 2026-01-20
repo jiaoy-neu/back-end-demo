@@ -121,7 +121,7 @@ jobs:
 
         WAR_FILE=$(find . -name "*.war" -type f | head -1)
         cp "$WAR_FILE" "app-${{ github.event.inputs.version }}.war"
-        cp "$WAR_FILE" "ROOT.war"
+        cp "$WAR_FILE" "app.war"
 
     - name: 创建 Release
       uses: softprops/action-gh-release@v2
@@ -140,7 +140,7 @@ jobs:
         prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
         files: |
           app-${{ github.event.inputs.version }}.war
-          ROOT.war
+          app.war
 
     - name: 部署 WAR 到 Azure
       env:
@@ -148,7 +148,7 @@ jobs:
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
         WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
       run: |
-        WAR_FILE=ROOT.war
+        WAR_FILE=app.war
 
         echo "开始部署 $WAR_FILE 到 $WEBAPP_NAME"
 
