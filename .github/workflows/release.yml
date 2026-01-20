@@ -146,6 +146,7 @@ jobs:
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
         WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
       run: |
+        WAR_FILE="app-${{ github.event.inputs.version }}.war"
         echo "开始部署 $WAR_FILE 到 $WEBAPP_NAME"
 
         curl -X POST \
