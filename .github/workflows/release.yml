@@ -1,4 +1,5 @@
 name: Manual Release
+
 on:
   workflow_dispatch:
     inputs:
@@ -18,11 +19,12 @@ on:
         description: '发布说明'
         required: false
         default: ''
+
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
     - name: 检出前端代码
       uses: actions/checkout@v4
@@ -30,43 +32,44 @@ jobs:
         repository: jiaoy-neu/front-end-demo
         ref: master
         path: frontend
-    
+
     - name: 设置 Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '16.13.2'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
-    
+
     - name: 安装依赖并构建
       working-directory: ./frontend
       run: |
         npm ci
         npm run build
-    
+
     - name: 上传前端构建产物
       uses: actions/upload-artifact@v4
       with:
         name: frontend-dist
         path: frontend/dist/
         retention-days: 5
+
   release:
     runs-on: ubuntu-latest
     needs: build-frontend
     timeout-minutes: 15
     permissions:
       contents: write
-    
+
     steps:
     - name: 检出后端代码
       uses: actions/checkout@v4
-    
+
     - name: 下载前端构建产物
       uses: actions/download-artifact@v4
       with:
         name: frontend-dist
         path: frontend-dist
-    
+
     - name: 复制前端文件到后端目录
       run: |
         if [ -d "src/main/webapp" ]; then
@@ -77,23 +80,23 @@ jobs:
           mkdir -p src/main/webapp
           TARGET_DIR="src/main/webapp/public"
         fi
-        
+
         mkdir -p "$TARGET_DIR"
         cp -rf frontend-dist/* "$TARGET_DIR/"
-        
+
         if [ ! -f "$TARGET_DIR/index.html" ]; then
           echo "错误: 未找到index.html"
           exit 1
         fi
         echo "成功复制前端文件"
-    
+
     - name: 设置 Java
       uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: 'maven'
-    
+
     - name: 验证工具版本
       run: |
         echo "Java 版本:"
@@ -104,21 +107,22 @@ jobs:
         echo ""
         echo "Maven home:"
         which mvn
-    
+
     - name: 创建 Git 标签
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git tag -a v${{ github.event.inputs.version }} -m "Release v${{ github.event.inputs.version }}"
         git push origin v${{ github.event.inputs.version }}
-    
+
     - name: 构建 WAR 包
       run: |
         mvn clean install -DskipTests
-        
+
         WAR_FILE=$(find . -name "*.war" -type f | head -1)
         cp "$WAR_FILE" "app-${{ github.event.inputs.version }}.war"
-    
+        cp "$WAR_FILE" "ROOT.war"
+
     - name: 创建 Release
       uses: softprops/action-gh-release@v2
       with:
@@ -126,7 +130,7 @@ jobs:
         name: Release v${{ github.event.inputs.version }}
         body: |
           ${{ github.event.inputs.changelog }}
-          
+
           ## 构建信息
           - 版本: ${{ github.event.inputs.version }}
           - 类型: ${{ github.event.inputs.release_type }}
@@ -134,33 +138,34 @@ jobs:
           - 构建号: ${{ github.run_number }}
         draft: ${{ github.event.inputs.release_type == 'draft' }}
         prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
-        files: app-${{ github.event.inputs.version }}.war
-    
-    
+        files: |
+          app-${{ github.event.inputs.version }}.war
+          ROOT.war
+
     - name: 上传 WAR 到 Azure
       env:
         FTP_HOST: ${{ secrets.AZURE_FTP_HOST }}
         FTP_USER: ${{ secrets.AZURE_FTP_USERNAME }}
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
       run: |
-        WAR_FILE="app-${{ github.event.inputs.version }}.war"
-        
+        WAR_FILE=ROOT.war
+
         echo "开始上传文件: $WAR_FILE 到 $FTP_HOST"
-        
+
         curl -T "$WAR_FILE" "ftps://$FTP_HOST/site/wwwroot/" \
           --ftp-ssl \
           --insecure \
           -u "$FTP_USER:$FTP_PASS" \
           --connect-timeout 60 \
           --max-time 300
-        
+
         if [ $? -eq 0 ]; then
           echo "WAR 文件上传成功"
         else
           echo "上传失败"
           exit 1
         fi
-    
+
     - name: 清理旧标签
       run: |
         git tag -l | sort -V | tail -n +11 | xargs -r git tag -d
