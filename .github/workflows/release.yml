@@ -147,10 +147,10 @@ jobs:
         
         echo "开始上传文件: $WAR_FILE 到 $FTP_HOST"
         
-        curl -T "$WAR_FILE" 'ftps://$FTP_HOST/site/wwwroot/' \
+        curl -T "$WAR_FILE" "ftps://$FTP_HOST/site/wwwroot/" \
           --ftp-ssl \
           --insecure \
-          -u '$FTP_USER:$FTP_PASS' \
+          -u "$FTP_USER:$FTP_PASS" \
           --connect-timeout 60 \
           --max-time 300
         
