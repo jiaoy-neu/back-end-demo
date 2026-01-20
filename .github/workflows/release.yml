@@ -172,13 +172,14 @@ jobs:
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
         WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
       run: |
-        echo "正在重启 App Service..."
-
-        curl -X POST -u "$FTP_USER:$FTP_PASS" \
+        echo "正在重启 App Service: $WEBAPP_NAME"
+        
+        response=$(curl -X POST -u "$FTP_USER:$FTP_PASS" \
           "https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart" \
-          --connect-timeout 30
-
-        echo "重启命令已发送"
+          --connect-timeout 30 \
+          -w "\nHTTP_CODE:%{http_code}")
+        
+        echo "响应: $response"
         
     - name: 清理旧标签
       run: |
