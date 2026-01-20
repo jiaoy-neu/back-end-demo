@@ -142,33 +142,22 @@ jobs:
     - name: 安装 lftp 客户端
       run: sudo apt-get update && sudo apt-get install -y lftp
 
-    - name: 上传 WAR 到 Azure
+    - name: 测试 FTP 连接
       env:
         FTP_HOST: ${{ secrets.AZURE_FTP_HOST }}
         FTP_USER: ${{ secrets.AZURE_FTP_USERNAME }}
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
       run: |
-        WAR_FILE="app-${{ github.event.inputs.version }}.war"
-
-        echo "开始上传文件: $WAR_FILE 到 $FTP_HOST"
-
+        echo "测试连接..."
         lftp -e "
           set ftp:ssl-allow true;
           set ftp:ssl-protect-data true;
           set ssl:verify-certificate no;
           set net:timeout 30;
-          set net:max-retries 3;
-          put '$WAR_FILE';
+          ls;
           bye;
         " -u "$FTP_USER","$FTP_PASS" "$FTP_HOST"
-
-        if [ $? -eq 0 ]; then
-          echo "WAR 文件上传成功"
-        else
-          echo "上传失败"
-          exit 1
-        fi
-
+    
     - name: 清理旧标签
       run: |
         git tag -l | sort -V | tail -n +11 | xargs -r git tag -d
