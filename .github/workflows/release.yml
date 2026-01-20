@@ -173,7 +173,16 @@ jobs:
         WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
       run: |
         echo "正在重启 App Service: $WEBAPP_NAME"
+        echo "URL: https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart"
         
+        echo "测试连接..."
+        curl -v -X POST -u "$FTP_USER:$FTP_PASS" \
+          "https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart" \
+          --connect-timeout 30 \
+          2>&1 | head -50
+        
+        echo ""
+        echo "发送重启命令..."
         response=$(curl -X POST -u "$FTP_USER:$FTP_PASS" \
           "https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart" \
           --connect-timeout 30 \
