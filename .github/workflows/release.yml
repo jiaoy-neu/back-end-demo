@@ -121,7 +121,7 @@ jobs:
 
         WAR_FILE=$(find . -name "*.war" -type f | head -1)
         cp "$WAR_FILE" "app-${{ github.event.inputs.version }}.war"
-        cp "$WAR_FILE" "app.war"
+        cp "$WAR_FILE" "ROOT.war"
 
     - name: 创建 Release
       uses: softprops/action-gh-release@v2
@@ -140,56 +140,27 @@ jobs:
         prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
         files: |
           app-${{ github.event.inputs.version }}.war
-          app.war
+          ROOT.war
 
-    - name: 上传 WAR 到 Azure
-      env:
-        FTP_HOST: ${{ secrets.AZURE_FTP_HOST }}
-        FTP_USER: ${{ secrets.AZURE_FTP_USERNAME }}
-        FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
-      run: |
-        WAR_FILE=app.war
-
-        echo "开始上传文件: $WAR_FILE 到 $FTP_HOST"
-
-        curl -T "$WAR_FILE" "ftps://$FTP_HOST/site/wwwroot/" \
-          --ftp-ssl \
-          --insecure \
-          -u "$FTP_USER:$FTP_PASS" \
-          --connect-timeout 60 \
-          --max-time 300
-
-        if [ $? -eq 0 ]; then
-          echo "WAR 文件上传成功"
-        else
-          echo "上传失败"
-          exit 1
-        fi
-
-    - name: 重启 Azure App Service
+    - name: 部署 WAR 到 Azure
       env:
         FTP_USER: ${{ secrets.AZURE_FTP_USERNAME }}
         FTP_PASS: ${{ secrets.AZURE_FTP_PASSWORD }}
         WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
       run: |
-        echo "正在重启 App Service: $WEBAPP_NAME"
-        echo "URL: https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart"
-        
-        echo "测试连接..."
-        curl -v -X POST -u "$FTP_USER:$FTP_PASS" \
-          "https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart" \
-          --connect-timeout 30 \
-          2>&1 | head -50
-        
-        echo ""
-        echo "发送重启命令..."
-        response=$(curl -X POST -u "$FTP_USER:$FTP_PASS" \
-          "https://$WEBAPP_NAME.scm.azurewebsites.net/api/restart" \
-          --connect-timeout 30 \
-          -w "\nHTTP_CODE:%{http_code}")
-        
-        echo "响应: $response"
-        
+        WAR_FILE=ROOT.war
+
+        echo "开始部署 $WAR_FILE 到 $WEBAPP_NAME"
+
+        curl -X POST \
+          -u "$FTP_USER:$FTP_PASS" \
+          "https://$WEBAPP_NAME.scm.azurewebsites.net/api/wardeploy" \
+          --data-binary "@$WAR_FILE" \
+          --connect-timeout 60 \
+          --max-time 300
+
+        echo "部署完成"
+
     - name: 清理旧标签
       run: |
         git tag -l | sort -V | tail -n +11 | xargs -r git tag -d
